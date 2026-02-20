@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.linalg as la
 
 from pyfr.solvers.baseadvecdiff import (BaseAdvectionDiffusionBCInters,
                                         BaseAdvectionDiffusionIntInters,
@@ -117,9 +118,83 @@ class NavierStokesStaticRobinBCInters(NavierStokesBaseBCInters):
     def __init__(self, be, lhs, elemap, cfgsect, cfg, bccomm):
         super().__init__(be, lhs, elemap, cfgsect, cfg, bccomm)
 
-        #self.c['cpTw'], = self._eval_opts(['cpTw'])
-        #self.c |= self._exp_opts('uvw'[:self.ndims], lhs,
-                                 #default={'u': 0, 'v': 0, 'w': 0})
+        # Key parameters
+
+        # Define objects for system
+        #self.intg = intg
+        #self.elemap_bc = elemap
+        #self.comm_BC = comm_BC
+        
+
+        #Logistics parameters
+        #self.counter_init = 0 #for hakcing elemap problem
+        #self.time_index = 1
+
+
+        # Collecting model parameters and constants
+        #gamma = self.cfg.getfloat('constants', 'gamma')
+        #self.gamma = gamma 
+        #Pr = self.cfg.getfloat('constants', 'Pr')
+        #mu = self.cfg.getfloat('constants', 'mu')
+        #R = self.cfg.getfloat('constants', 'R')
+        
+
+        # Setting up matrices for flux point coordinate data
+        spec = f'in fpdtype_t[{self.ndims}]'
+        value = self._const_mat(lhs, 'get_ploc_for_inter')
+        self._set_external('ploc', spec, value=value)
+
+        f_coords_be = self._external_vals['ploc']
+        f_coords = f_coords_be.get()
+        custom_shape = (self.ndims,f_coords.shape[1])
+        
+        # 3D Effects to be communicated to mako files
+        #Velocity tangent normalized
+        #self.u_hat = be.matrix((custom_shape),tags = {'align'}, dtype = be.fpdtype)
+        #self._set_external('u_hat',f'in fpdtype_t[{custom_shape[0]}]',value=self.u_hat)
+        
+        #Wall model Gradient slip velocity variable
+        #self.u_slip = be.matrix((1,f_coords.shape[1]),tags = {'align'}, dtype = be.fpdtype)
+        #self._set_external('u_slip',f'in fpdtype_t[{1}]',value=self.u_slip)
+        
+        # Spanwise basis vector
+        #self.khat = be.matrix((custom_shape),tags = {'align'}, dtype = be.fpdtype)
+        #self._set_external('khat',f'in fpdtype_t[{custom_shape[0]}]',value=self.khat)
+
+        # Collecting normal vectors:
+        #pn1 = self._pnorm_lhs.get()
+        # Direct approach to obtaining flux point normals (either way works)
+        pn1_obj = self._const_mat(lhs, 'get_pnorms_for_inter')
+        pn1 = pn1_obj.get()
+        #raise Exception('size of pn1: ',pn1.shape, self.ndims,f_coords.shape)
+        pn1_norms = la.norm(pn1,axis=0)
+        pn1_norm_tile = np.tile(pn1_norms,(self.ndims,1))
+        #Normalized vector
+        pn1_hat = -pn1/pn1_norm_tile # minus because all flux norms point outward, we will work into the grid
+        self.pn1_hat = pn1_hat.T
+
+        # Grabbing the jacobian determinant per flux point element
+        rcpdjac_obj = self._const_mat(lhs,'get_rcpdjac_for_inter')
+        djac = 1/rcpdjac_obj.get().flatten() # we called the reciprocal so undo
+
+        
+
+
+        #Computing the wall height based on delta h of wall adjacent element
+        self.wall_height = 2/(pn1_norms/djac) # based on comp. element length and a somewhat unsovled eq.
+        #self.sample_height = self.wall_height.copy() # keep consistent for now
+        #Scaling parameters
+        #raise Exception('wall height by inters: ',self.wall_height)
+        c_s = 0.1 # smagorinsky constant
+        self.dl = self.wall_height.copy() *c_s # scaling parameter
+        #self.uslip_i= (np.zeros_like(self.sample_height))
+
+
+        # Outputting wall height as delta value
+        self.delta = be.matrix((1,f_coords.shape[1]),tags = {'align'}, dtype = be.fpdtype)
+        self._set_external('delta',f'in fpdtype_t[{1}]',value=self.delta)
+
+        self.delta.set(np.atleast_2d(self.dl)) 
 
 
 

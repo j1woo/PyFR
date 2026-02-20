@@ -17,7 +17,7 @@
     ${pyfr.expand('artificial_viscosity_add', 'gradur', 'fvr', 'artviscl')};
 
     // Inviscid (Riemann solve) state
-    ${pyfr.expand('bc_rsolve_state', 'ul', 'nl', 'ur')};
+    ${pyfr.expand('bc_rsolve_state', 'ul', 'nl', 'ur', 'gradul')};
 
     // Perform the Riemann solve
     fpdtype_t ficomm[${nvars}], fvcomm;

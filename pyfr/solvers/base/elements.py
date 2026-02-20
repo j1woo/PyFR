@@ -306,6 +306,10 @@ class BaseElements:
         return self._be.const_matrix(self.rcpdjac_at_np(name), tags={'align'})
 
     @memoize
+    def rcpdjac_at_nonslice(self, name):
+        return self._be.const_matrix(self.rcpdjac_at_np(name), tags={'align'})
+
+    @memoize
     def ploc_at_np(self, name):
         pt = getattr(self.basis, name) if isinstance(name, str) else name
         op = self.basis.sbasis.nodal_basis_at(pt)
@@ -331,6 +335,10 @@ class BaseElements:
     @cached_property
     def _pnorm_fpts(self):
         return self.pnorm_at('fpts', self.basis.norm_fpts)
+
+    @cached_property
+    def _rcpdjac_fpts(self):
+        return self.rcpdjac_at_nonslice('fpts').get() #, self.basis.norm_fpts)
 
     @memoize
     def pnorm_at(self, name, norm):
@@ -413,6 +421,10 @@ class BaseElements:
     def get_pnorms(self, eidx, fidx):
         fpts_idx = self.basis.facefpts[fidx]
         return self._pnorm_fpts[fpts_idx, eidx]
+
+    def get_rcpdjac_for_inter(self, eidx, fidx):
+        fpts_idx = self._srtd_face_fpts[fidx][eidx]
+        return self._rcpdjac_fpts[fpts_idx, eidx]
 
     def get_pnorms_for_inter(self, eidx, fidx):
         fpts_idx = self._srtd_face_fpts[fidx][eidx]

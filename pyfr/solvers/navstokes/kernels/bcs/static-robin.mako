@@ -1,21 +1,100 @@
 <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
 <%include file='pyfr.solvers.navstokes.kernels.bcs.common'/>
+//#include <stdio.h>
 
-<%pyfr:macro name='bc_rsolve_state' params='ul, nl, ur' externs='ploc, t'>
+<%pyfr:macro name='bc_rsolve_state' params='ul, nl, ur,grad_ul' externs='ploc, t, delta'>
     ur[0] = ul[0];
-% for i in range(ndims):
-    ur[${i + 1}] = -ul[${i + 1}];
-% endfor
-    ur[${nvars - 1}] = ul[${nvars - 1}];
+
+    //Preparing for robin condition
+    fpdtype_t rcprho = 1.0/ur[0];
+    
+    // 2D Version 
+% if ndims == 2:
+    fpdtype_t u = rcprho*ul[1], v = rcprho*ul[2];
+
+    // Velocity derivatives (rho*grad[u,v])
+    fpdtype_t u_x = rcprho*(grad_ul[0][1] - u*grad_ul[0][0]);
+    fpdtype_t u_y = rcprho*(grad_ul[1][1] - u*grad_ul[1][0]);
+
+    fpdtype_t v_x = rcprho*(grad_ul[0][2] - v*grad_ul[0][0]);
+    fpdtype_t v_y = rcprho*(grad_ul[1][2] - v*grad_ul[1][0]);
+
+    //fpdtype_t xploc = ploc[0];
+    //printf("Gradient: %f and u: %f and x: %f\n", u_y, u, xploc);
+
+    // Convert to wall normal derivative
+    fpdtype_t u_n = -(u_x*nl[0] + u_y*nl[1]);
+    fpdtype_t v_n = -(v_x*nl[0] + v_y*nl[1]);
+
+
+    // Compute robin condition for value
+    fpdtype_t u_rob = delta[0]*u_n;
+    //u_rob = delta[0]*903.7087;
+    fpdtype_t v_rob = delta[0]*v_n;
+
+    //Remove normal component
+    fpdtype_t u_ortho = u_rob*nl[0] + v_rob*nl[1];
+    u_rob = u_rob-u_ortho*nl[0];
+    v_rob = v_rob- u_ortho*nl[1];
+
+    //printf("Checking vrob: %f \n",v_rob);
+
+
+    // Convert back to primitive and assign to right side
+    ur[1] =-ul[1] + 2*u_rob*ur[0];
+    ur[2] =-ul[2] + 2*v_rob*ur[0];
+    //ur[2] =-0.5*ul[2] + 2*v_rob*ur[0];
+
+    fpdtype_t p_term = ul[${nvars - 1}] - (0.5/ul[0])*${pyfr.dot('ul[{i}]', i=(1, ndims + 1))};
+    ur[${nvars - 1}] = p_term + 0.5*ul[0]*(u_rob*u_rob + v_rob*v_rob); 
+
+    
+    // 3D Version 
+% elif ndims == 3:
+    fpdtype_t u = rcprho*ul[1], v = rcprho*ul[2], w = rcprho*ul[3];
+
+    // Velocity derivatives (rho*grad[u,v,w])
+    fpdtype_t u_x = rcprho*(grad_ul[0][1] - u*grad_ul[0][0]);
+    fpdtype_t u_y = rcprho*(grad_ul[1][1] - u*grad_ul[1][0]);
+    fpdtype_t u_z = rcprho*(grad_ul[2][1] - u*grad_ul[2][0]);
+    fpdtype_t v_x = rcprho*(grad_ul[0][2] - v*grad_ul[0][0]);
+    fpdtype_t v_y = rcprho*(grad_ul[1][2] - v*grad_ul[1][0]);
+    fpdtype_t v_z = rcprho*(grad_ul[2][2] - v*grad_ul[2][0]);
+    fpdtype_t w_x = rcprho*(grad_ul[0][3] - w*grad_ul[0][0]);
+    fpdtype_t w_y = rcprho*(grad_ul[1][3] - w*grad_ul[1][0]);
+    fpdtype_t w_z = rcprho*(grad_ul[2][3] - w*grad_ul[2][0]);
+
+    // Convert to wall normal derivative
+    fpdtype_t u_n = -(u_x*nl[0] + u_y*nl[1] + u_z*nl[2]);
+    fpdtype_t v_n = -(v_x*nl[0] + v_y*nl[1] + v_z*nl[2]);
+    fpdtype_t w_n = -(w_x*nl[0] + w_y*nl[1] + w_z*nl[2]);
+
+    // Compute robin condition for value
+    fpdtype_t u_rob = delta[0]*u_n;
+    fpdtype_t v_rob = delta[0]*v_n;
+    fpdtype_t w_rob = delta[0]*w_n;
+
+    // Convert back to primitive and assign to right side
+    ur[1] =-ul[1] + 2*u_rob*ur[0];
+    ur[2] =-ul[2] + 2*v_rob*ur[0];
+    ur[3] =-ul[3] + 2*w_rob*ur[0];
+
+    fpdtype_t p_term = ul[${nvars - 1}] - (0.5/ul[0])*${pyfr.dot('ul[{i}]', i=(1, ndims + 1))};
+    ur[${nvars - 1}] = p_term + 0.5*ul[0]*(u_rob*u_rob + v_rob*v_rob + w_rob*w_rob); 
+% endif
 </%pyfr:macro>
+
+
+
+
 
 <%pyfr:macro name='bc_ldg_state' params='ul, nl, ur' externs='ploc, t'>
     ur[0] = ul[0];
 % for i in range(ndims):
-    ur[${i + 1}] = 0.0;
+    ur[${i + 1}] = ul[${i+1}];
 % endfor
-    ur[${nvars - 1}] = ul[${nvars - 1}]
-                     - (0.5/ul[0])*${pyfr.dot('ul[{i}]', i=(1, ndims + 1))};
+    ur[${nvars - 1}] = ul[${nvars - 1}];
+    //- (0.5/ul[0])*${pyfr.dot('ul[{i}]', i=(1, ndims + 1))};
 </%pyfr:macro>
 
 <%pyfr:macro name='bc_ldg_grad_state' params='ur, nl, grad_ul, grad_ur'>

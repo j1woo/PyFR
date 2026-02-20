@@ -110,6 +110,19 @@ class NavierStokesBaseBCInters(TplargsMixin, BaseAdvectionDiffusionBCInters):
                 nl=self._pnorm_lhs, ul=self._scal_lhs, **self._external_vals
             )
 
+class NavierStokesStaticRobinBCInters(NavierStokesBaseBCInters):
+    type = 'static-robin'
+    cflux_state = 'ghost-robin'
+
+    def __init__(self, be, lhs, elemap, cfgsect, cfg, bccomm):
+        super().__init__(be, lhs, elemap, cfgsect, cfg, bccomm)
+
+        #self.c['cpTw'], = self._eval_opts(['cpTw'])
+        #self.c |= self._exp_opts('uvw'[:self.ndims], lhs,
+                                 #default={'u': 0, 'v': 0, 'w': 0})
+
+
+
 
 class NavierStokesNoSlpIsotWallBCInters(NavierStokesBaseBCInters):
     type = 'no-slp-isot-wall'

@@ -177,15 +177,15 @@ class NavierStokesStaticRobinBCInters(NavierStokesBaseBCInters):
         rcpdjac_obj = self._const_mat(lhs,'get_rcpdjac_for_inter')
         djac = 1/rcpdjac_obj.get().flatten() # we called the reciprocal so undo
 
-        
-
-
         #Computing the wall height based on delta h of wall adjacent element
         self.wall_height = 2/(pn1_norms/djac) # based on comp. element length and a somewhat unsovled eq.
         #self.sample_height = self.wall_height.copy() # keep consistent for now
         #Scaling parameters
         #raise Exception('wall height by inters: ',self.wall_height)
-        c_s = 0.1 # smagorinsky constant
+
+        # Static constant
+        #c_s = 0.1 # smagorinsky constant
+        c_s, = self._eval_opts(['c_s'])
         self.dl = self.wall_height.copy() *c_s # scaling parameter
         #self.uslip_i= (np.zeros_like(self.sample_height))
 

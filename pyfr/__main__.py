@@ -5,10 +5,21 @@ import io
 from pathlib import Path
 import re
 
-import h5py
 import mpi4py.rc
-import numpy as np
+
+# PyFR manually initializes MPI later using MPI.Init_thread()
 mpi4py.rc.initialize = False
+
+# Load Cray MPI and libmpi_gtl_cuda before parallel HDF5
+from mpi4py import MPI  # noqa: F401
+
+import h5py
+import numpy as np
+
+#import h5py
+#import mpi4py.rc
+#import numpy as np
+#mpi4py.rc.initialize = False
 
 from pyfr._version import __version__
 from pyfr.backends import BaseBackend, get_backend
